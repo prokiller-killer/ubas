@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Garena Account Checker</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #121212;
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            text-align: center;
+            background-color: #1e1e1e;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.5);
+            width: 400px;
+        }
+
+        h1 {
+            color: #00d9ff;
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 10px;
+        }
+
+        input, button {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: none;
+            border-radius: 5px;
+            font-size: 1rem;
+        }
+
+        input[type="file"] {
+            background-color: #333;
+            color: #fff;
+        }
+
+        button {
+            background-color: #00d9ff;
+            color: #121212;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background-color: #00b4cc;
+        }
+
+        .status {
+            margin-top: 10px;
+            color: #00ff7b;
+        }
+
+        .result {
+            margin-top: 20px;
+            text-align: left;
+            max-height: 200px;
+            overflow-y: auto;
+            background-color: #1e1e1e;
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        .result p {
+            margin: 5px 0;
+        }
+
+        .valid {
+            color: #00ff7b;
+            font-weight: bold;
+        }
+
+        .invalid {
+            color: #ff4d4d;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Garena Account Checker</h1>
+        <label for="fileInput">Upload Accounts File (username:password)</label>
+        <input type="file" id="fileInput" accept=".txt">
+        <button id="validateButton">Check Accounts</button>
+        <div class="status" id="status">Status: Waiting for file...</div>
+        <div class="result" id="result"></div>
+    </div>
+    <script>
+        document.getElementById('validateButton').addEventListener('click', async () => {
+            const fileInput = document.getElementById('fileInput');
+            const status = document.getElementById('status');
+            const resultContainer = document.getElementById('result');
+
+            resultContainer.innerHTML = "";
+
+            if (!fileInput.files[0]) {
+                status.textContent = "Please upload a file.";
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+
+            reader.onload = async (e) => {
+                const accounts = e.target.result.split('\n').map(line => line.trim()).filter(line => line);
+
+                if (accounts.length === 0) {
+                    status.textContent = "File is empty.";
+                    return;
+                }
+
+                status.textContent = "Validating accounts...";
+                let validCount = 0;
+
+                for (const account of accounts) {
+                    const [username, password] = account.split(':');
+                    if (!username || !password) {
+                        resultContainer.innerHTML += `<p class="invalid">${account}: Invalid format</p>`;
+                        continue;
+                    }
+
+                    try {
+                        // Send request to the backend PHP script to validate the account
+                        const response = await fetch('validate_account.php', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                username,
+                                password,
+                            }),
+                        });
+
+                        const data = await response.json();
+                        console.log(`Response for ${username}:`, data);
+
+                        // Check the result returned by PHP
+                        if (data.error) {
+                            resultContainer.innerHTML += `<p class="invalid">${username}: ${data.error}</p>`;
+                        } else {
+                            resultContainer.innerHTML += `<p class="valid">${username}: <b>Valid Account</b></p>`;
+                            validCount++;
+                        }
+                    } catch (error) {
+                        resultContainer.innerHTML += `<p class="invalid">${username}: Error</p>`;
+                        console.error(`Error for ${username}:`, error);
+                    }
+                }
+
+                status.textContent = `Validation complete: ${validCount} valid accounts.`;
+            };
+
+            reader.readAsText(file);
+        });
+    </script>
+</body>
+</html>
